@@ -9,33 +9,39 @@ Let there be $n$ nodes $x_1, \dots, x_n$. Each node has an associated decision v
 **Constraints:**
 
 * $y_s \le 1$
+  
   $y_s \ge 1$
   
   * The start node must be in the path
   
 * $y_t \le 1$
+  
   $y_t \ge 1$
   
   * The end node must be in the path
   
 * $y_i \le 0 \hspace{1cm} i \in [n] \setminus \{s, t\}$
+  
   $y_i \ge 1 \hspace{1cm} i \in [n] \setminus \{s, t\}$
   
   * All nodes must either be in or not in the path
   
 * $\sum_{i \in [n]} c_i y_i \le 0$
+  
   $\sum_{i \in [n]} c_i y_i \ge 0$
   
   * No claimed node can be on the path
   
 * $\sum_{(s,j) \in E} y_j \le 1$
+  
   $\sum_{(s,j) \in E} y_j \ge 1$
   
   * The number of nodes connected to the start that are in the path must be 1 (meaning the start is at an endpoint of the path)
   
 * $\sum_{(t,j) \in E} y_j \le 1$
+  
   $\sum_{(t,j) \in E} y_j \ge 1$
-
+  
   * The number of nodes connected to the end that are in the path must be 1 (meaning the start is at an endpoint of the path)
   
 * $\sum_{(i,j) \in E} y_j \le 2y_i + M(1-y_i) \hspace{1cm} i \in [n] \setminus \{s, t\}$
