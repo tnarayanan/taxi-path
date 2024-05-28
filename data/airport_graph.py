@@ -5,6 +5,8 @@ from typing import Self
 
 import numpy as np
 
+from data.problem_inst import ProblemInst
+
 
 def dist(a: tuple[float, float], b: tuple[float, float]) -> float:
     return math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
@@ -55,23 +57,102 @@ class AirportGraph:
 
         return [], -1.0
 
+    def to_problem_inst(self) -> ProblemInst:
+        rng = np.random.default_rng()
+        n = self.n_intersection_nodes + self.n_taxiway_nodes
+
+        # select random pairs of nodes to be claimed
+        num_planes_on_tarmac = rng.integers(1, self.n_intersection_nodes // 2)
+        all_nodes = set(range(n))
+        claimed_nodes = set()
+        while len(claimed_nodes) < 2 * num_planes_on_tarmac:
+            node1 = rng.choice(list(all_nodes - claimed_nodes))
+            available_neighbors = list(self.adj_list[node1] - claimed_nodes)
+            if len(available_neighbors) == 0:
+                continue
+            node2 = rng.choice(available_neighbors)
+            claimed_nodes.update([node1, node2])
+
+        # look for s and t such that they are connected
+        path = []
+        s, t = -1, -1
+        while len(path) == 0:
+            s, t = rng.choice(list(set(range(self.n_intersection_nodes)) - claimed_nodes), size=2,
+                              replace=False)
+            path, _ = self.shortest_path(s, t, restricted_nodes=claimed_nodes)
+
+        # construct problem matrices
+
+        # lengths for objective function
+        c = np.array([0 for _ in range(self.n_intersection_nodes)] + self.taxiway_lens)
+
+        # empty equality constraint matrices
+        A_eq = np.zeros((n + 3, n))
+        b_eq = np.zeros(n + 3)
+
+        # y_s = 1
+        A_eq[0, s] = 1
+        b_eq[0] = 1
+
+        # y_t = 1
+        A_eq[1, s] = 1
+        b_eq[1] = 1
+
+        # sum (c_i * y_i) = 0
+        for nd in claimed_nodes:
+            A_eq[2, nd] = 1
+        b_eq[2] = 0
+
+        # sum_(s,j) y_j = 1
+        for nd in self.adj_list[s]:
+            A_eq[3, nd] = 1
+        b_eq[3] = 1
+
+        # sum_(t,j) y_j = 1
+        for nd in self.adj_list[t]:
+            A_eq[4, nd] = 1
+        b_eq[4] = 1
+
+        A_ub = np.zeros((2 * (n - 2), n))
+        b_ub = np.zeros(2 * (n - 2))
+
+        # sum_(i,j) y_j - (2-M)*y_i <= M
+        # sum_(i,j) y_j - (2+M)*y_i >= -M    ==>    sum_(i,j) -y_j + (2+M)*y_i <= M
+        m = 10
+        for idx, i in enumerate(all_nodes - {s, t}):
+            for j in self.adj_list[i]:
+                A_ub[2 * idx, j] = 1
+                A_ub[2 * idx + 1, j] = -1
+
+            A_ub[2 * idx, i] = -(2 - m)
+            A_ub[2 * idx + 1, i] = 2 + m
+
+            b_ub[2 * idx] = m
+            b_ub[2 * idx + 1] = m
+
+        sol = np.zeros(n)
+        for nd in path:
+            sol[nd] = 1
+
+        return ProblemInst(s, t, c, A_ub, b_ub, A_eq, b_eq, sol)
+
     @classmethod
     def KDCA(cls) -> 'Self':
         kdca = AirportGraph()
         inodes: list[tuple[int, int]] = [
-            (681, 175),   # 0
-            (383, 196),   # 1
-            (488, 226),   # 2
-            (257, 395),   # 3
-            (113, 468),   # 4
-            (526, 489),   # 5
-            (307, 531),   # 6
-            (166, 588),   # 7
-            (734, 792),   # 8
-            (556, 803),   # 9
-            (373, 818),   # 10
-            (219, 826),   # 11
-            (564, 977),   # 12
+            (681, 175),  # 0
+            (383, 196),  # 1
+            (488, 226),  # 2
+            (257, 395),  # 3
+            (113, 468),  # 4
+            (526, 489),  # 5
+            (307, 531),  # 6
+            (166, 588),  # 7
+            (734, 792),  # 8
+            (556, 803),  # 9
+            (373, 818),  # 10
+            (219, 826),  # 11
+            (564, 977),  # 12
             (750, 1006),  # 13
             (764, 1132),  # 14
             (172, 1233),  # 15
