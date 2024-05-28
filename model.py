@@ -1,13 +1,22 @@
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
-# import torch_geometric.nn as gnn
+from torch import nn
+import torch.nn.functional as F
+import torch_geometric.nn as gnn
 
-from data.airport_graph import AirportGraph
-from data.problem_inst import ProblemInst
 
-x = AirportGraph.KDCA()
+class IPSolverModel(nn.Module):
+    def __init__(self, hidden_size=16, edge_dim=1):
+        super().__init__()
+        self.convs = [gnn.GATConv(1, hidden_size, edge_dim=edge_dim),
+                      gnn.GATConv(hidden_size, hidden_size, edge_dim=edge_dim)]
+        self.linear = nn.Linear(hidden_size, 1)
 
-print(x.adj_list)
+    def forward(self, x, edge_index, edge_attr):
+        for conv in self.convs[:-1]:
+            x = conv(x, edge_index, edge_attr=edge_attr)
+            x = F.relu(x)
+            x = F.dropout(x, training=self.training)
 
-print(ProblemInst.from_airport_graph(x))
+        x = self.convs[-1](x, edge_index, edge_attr=edge_attr)
+        x = self.linear(x)
+
+        return x
