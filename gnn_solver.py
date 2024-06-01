@@ -1,5 +1,4 @@
 from copy import deepcopy
-from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -8,11 +7,6 @@ from data.airport_graph import AirportGraph
 from data.problem_inst import ProblemInst
 from model import GNNSolverModel
 
-
-@dataclass
-class GNNSolverState:
-    problem_inst: ProblemInst
-    branched_vars: dict[int, int]
 
 class GNNSolver:
     def __init__(self, model: GNNSolverModel):
@@ -25,12 +19,10 @@ class GNNSolver:
         x_star = np.zeros(inst.c.shape)
         z_star = np.inf
 
-        stack: list[GNNSolverState] = [GNNSolverState(problem_inst=inst, branched_vars={})]
+        stack: list[ProblemInst] = [inst]
 
         while len(stack) > 0:
-            state = stack.pop()
-            inst = state.problem_inst
-            branched_vars = state.branched_vars
+            inst = stack.pop()
 
             # first solve the LP relaxation of this problem inst
             solution = inst.solve_lp()
@@ -61,21 +53,12 @@ class GNNSolver:
                                                          torch.from_numpy(edge_attr).type(torch.FloatTensor))[:n]
                 print(model_outputs.shape)
 
-                model_outputs[np.array(list(state.branched_vars.keys()))] = -torch.inf
+                model_outputs[np.array(list(inst.branched_vars.keys()))] = -torch.inf
 
                 selected_var = model_outputs.argmax(dim=0).item()
                 print(selected_var)
 
-                branched_1 = deepcopy(branched_vars)
-                branched_1[selected_var] = 1
-
-                branched_0 = deepcopy(branched_vars)
-                branched_0[selected_var] = 1
-
-                state_1 = GNNSolverState(problem_inst=inst.apply_branched_vars(branched_1), branched_vars=branched_1)
-                state_0 = GNNSolverState(problem_inst=inst.apply_branched_vars(branched_0), branched_vars=branched_0)
-
-                stack.extend([state_1, state_0])
+                stack.extend([inst.branch(selected_var, 0), inst.branch(selected_var, 1)])
             elif z_j < z_star and is_solution_integral:
                 x_star, z_star = x_j, z_j
                 print(f"Found better solution with value {z_star}: {x_star}")
@@ -84,8 +67,19 @@ class GNNSolver:
         print(f"branch and bound solution: {z_star}, {x_star}")
 
         optimal_sol = inst.solve_lp(integrality=1)
-        print(f"optimal solution: {np.dot(inst.c, optimal_sol.x)}, {optimal_sol.x}")
+        if optimal_sol.success:
+            print(f"optimal solution: {np.dot(inst.c, optimal_sol.x)}, {optimal_sol.x}")
+            print(f"optimal and discovered solution close: {np.allclose(x_star, optimal_sol.x)}")
+        else:
+            print("optimal solver found no solution")
 
+        print()
+        print(f"actual solution: {np.dot(inst.c, inst.sol)} {inst.sol}")
+        print(f"\tclose to discovered: {np.allclose(x_star, inst.sol)}")
+        if optimal_sol.success:
+            print(f"\tclose to optimal: {np.allclose(optimal_sol.x, inst.sol)}")
+
+        print(inst.data['s'], inst.data['t'])
         return x_star, z_star
 
 
