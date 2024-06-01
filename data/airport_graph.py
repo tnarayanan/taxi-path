@@ -87,31 +87,31 @@ class AirportGraph:
         c = np.array([0 for _ in range(self.n_intersection_nodes)] + self.taxiway_lens)
 
         # empty equality constraint matrices
-        A_eq = np.zeros((n + 3, n))
-        b_eq = np.zeros(n + 3)
+        A_eq = np.zeros((n + 5, n))
+        b_eq = np.zeros(n + 5)
 
         # y_s = 1
-        A_eq[0, s] = 1
-        b_eq[0] = 1
+        A_eq[-1, s] = 1
+        b_eq[-1] = 1
 
         # y_t = 1
-        A_eq[1, s] = 1
-        b_eq[1] = 1
+        A_eq[-2, s] = 1
+        b_eq[-2] = 1
 
         # sum (c_i * y_i) = 0
         for nd in claimed_nodes:
-            A_eq[2, nd] = 1
-        b_eq[2] = 0
+            A_eq[-3, nd] = 1
+        b_eq[-3] = 0
 
         # sum_(s,j) y_j = 1
         for nd in self.adj_list[s]:
-            A_eq[3, nd] = 1
-        b_eq[3] = 1
+            A_eq[-4, nd] = 1
+        b_eq[-4] = 1
 
         # sum_(t,j) y_j = 1
         for nd in self.adj_list[t]:
-            A_eq[4, nd] = 1
-        b_eq[4] = 1
+            A_eq[-5, nd] = 1
+        b_eq[-5] = 1
 
         A_ub = np.zeros((2 * (n - 2), n))
         b_ub = np.zeros(2 * (n - 2))
