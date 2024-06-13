@@ -71,6 +71,6 @@ class ProblemInst:
 
     def branch(self, var: int, value: int) -> 'Self':
         new_branched_vars = deepcopy(self.branched_vars)
-        assert var not in new_branched_vars, f"variable {var} has already been branched on (value={new_branched_vars[var]}"
+        assert var not in new_branched_vars, f"variable {var} has already been branched on (value={new_branched_vars[var]})"
         new_branched_vars[var] = value
         return ProblemInst(self.c, self.A_ub, self.b_ub, self.A_eq, self.b_eq, self.sol, data=self.data, branched_vars=new_branched_vars)

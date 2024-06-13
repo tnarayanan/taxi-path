@@ -57,7 +57,7 @@ class AirportGraph:
 
         return [], -1.0
 
-    def to_problem_inst(self) -> ProblemInst:
+    def get_random_problem_inst(self) -> ProblemInst:
         rng = np.random.default_rng()
         n = self.n_intersection_nodes + self.n_taxiway_nodes
 
